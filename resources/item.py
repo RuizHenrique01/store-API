@@ -3,11 +3,13 @@ from flask import request
 from flask.views import MethodView
 from flask_smorest import abort, Blueprint
 from db import items, stores
+from schemas import ItemSchema, ItemUpdateSchema
 
 blp = Blueprint("Items", __name__, description="Operations on items")
 
 @blp.route("/item/<string:item_id>")
 class Item(MethodView):
+    @blp.response(200, ItemSchema)
     def get(self, item_id):
         try:
             return items[item_id]
@@ -21,9 +23,9 @@ class Item(MethodView):
         except KeyError:
             abort(404, message="Item not found!")
 
-    def put(self, item_id):
-        request_data = request.get_json()
-
+    @blp.arguments(ItemUpdateSchema)
+    @blp.response(200, ItemSchema)
+    def put(self, request_data, item_id):
         if item_id not in items:
             abort(404, message="Item not found!")
 
@@ -33,14 +35,14 @@ class Item(MethodView):
 
         item_data = items[item_id]
         item_data |= request_data
-        return item_data, 200
+        return item_data
 
 
 @blp.route("/item")
 class ItemList(MethodView):
-    def post(self):
-        request_data = request.get_json()
-
+    @blp.arguments(ItemSchema)
+    @blp.response(201, ItemSchema)
+    def post(self, request_data):
         if request_data["store_id"] not in stores:
             abort(404, message="Store not found!")
 
@@ -51,7 +53,8 @@ class ItemList(MethodView):
         item_id = uuid.uuid4().hex
         new_item = { **request_data, "id": item_id }
         items[item_id] = new_item
-        return new_item, 201
+        return new_item
 
+    @blp.response(200, ItemSchema(many=True))
     def get(self):
-        return {"items": list(items.values())}
+        return items.values()
