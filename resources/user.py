@@ -4,7 +4,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from models import UserModel
 from schemas import UserSchema
 from passlib.hash import pbkdf2_sha256
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt, create_refresh_token, get_jwt_identity
 from db import db
 from blocklist import BLOCKLIST
 
@@ -59,10 +59,21 @@ class UserLogin(MethodView):
         user = UserModel.query.filter(UserModel.username == user_data["username"]).first()
 
         if user and pbkdf2_sha256.verify(user_data["password"], user.password):
-            token = create_access_token(identity=user.id)
-            return { "token": token }, 200
+            token = create_access_token(identity=user.id, fresh=True)
+            refresh = create_refresh_token(user.id)
+            return { "token": token, "refresh_token": refresh }, 200
         
         abort(401, message="Invalid credentials.")
+
+@blp.route("/refresh")
+class TokenRefresh(MethodView):
+    @jwt_required(refresh=True)
+    def post(self):
+        current_user = get_jwt_identity()
+        new_token = create_access_token(identity=current_user, fresh=False)
+        jwt = get_jwt()["jti"]
+        BLOCKLIST.add(jwt)
+        return { "token": new_token }, 200
 
 @blp.route("/logout")
 class UserLogout(MethodView):
