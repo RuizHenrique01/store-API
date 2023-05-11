@@ -5,6 +5,7 @@ from resources.item import blp as ItemBlueprint
 from resources.tag import blp as TagBlueprint
 from resources.user import blp as UserBlueprint
 from flask_jwt_extended import JWTManager
+from flask_migrate import Migrate
 from blocklist import BLOCKLIST
 from db import db
 import models
@@ -22,6 +23,7 @@ def create_app(db_url=None):
     app.config["SQLALCHEMY_DATABASE_URI"] = db_url or os.getenv("DATABASE_URL", "sqlite:///data.db")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     db.init_app(app)
+    migrate = Migrate(app, db)
     api = Api(app)
 
     app.config["JWT_SECRET_KEY"] = "335843368045176340606476296251859817327"
@@ -87,9 +89,6 @@ def create_app(db_url=None):
             ),
             401,
         )
-
-    with app.app_context():
-        db.create_all()
 
     api.register_blueprint(StoreBlueprint)
     api.register_blueprint(ItemBlueprint)
